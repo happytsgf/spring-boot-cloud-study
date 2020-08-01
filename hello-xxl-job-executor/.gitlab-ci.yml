@@ -1,0 +1,59 @@
+variables:
+  DOCKER_IMAGE: spring-cloud-alibaba/hello-xxl-job-executor
+  APP_NAME: jobexecutor
+
+before_script:
+  - echo "begin to run script"
+  - export COMMIT_TIME=$(date "+%Y%m%d")
+  #- export GIT_TAG=$(git describe --tags --always)
+  - export GIT_TAG=v$CI_PIPELINE_ID
+  - echo " CI_BUILD_REF_NAME:"$CI_BUILD_REF_NAME " COMMIT_TIME:" $COMMIT_TIME " GIT_TAG:" $GIT_TAG
+  - docker login -u $HARBOR_USER -p $HARBOR_PASSWD $HARBOR_HOST
+  - export IMAGE_URL_QA=${HARBOR_HOST}/${DOCKER_IMAGE}-qa:${COMMIT_TIME}-${GIT_TAG}
+  - export IMAGE_URL_PROD=${HARBOR_HOST}/${DOCKER_IMAGE}-prod:${CI_BUILD_REF_NAME}
+stages:
+  - build
+  - deploy
+
+IDC:build:qa:
+  stage: build
+  script:
+    - echo "=================开始编译================="
+    - mvn  -U -am clean package
+    - echo "=================开始构建================="
+    -  docker build  -t ${IMAGE_URL_QA} .
+    -  docker push ${IMAGE_URL_QA}
+    -  docker rmi ${IMAGE_URL_QA}
+  tags:
+    - qa-spring-cloud-alibaba
+  only:
+    - develop
+
+IDC:deploy:qa:
+  stage: deploy
+  script:
+    - echo "=================开始部署================="
+    - echo "准备k8s.yml文件"
+    - sed -e 's#{IMAGE_URL}#'${HARBOR_HOST}/${DOCKER_IMAGE}-qa'#g;s#{IMAGE_TAG}#'${COMMIT_TIME}-${GIT_TAG}'#g;s#{APP_NAME}#'${APP_NAME}'#g;s#{SPRING_PROFILE}#k8s-qa#g' k8s-deployment.tpl > k8s-deployment.yml
+    - echo "推送k8s脚本部署"
+    - kubectl apply -f k8s-deployment.yml --validate=false --namespace=${K8S_NAMESPACE}
+#    - kubectl version
+  tags:
+    - qa-spring-cloud-alibaba
+  only:
+    - develop
+
+IDC:build:prod:
+  stage: build
+  script:
+    - echo "=================开始编译生产环境================="
+    - mvn  -U -am clean package
+    - echo "=================开始构建生产环境================="
+    -  docker login -u ${HARBOR_USER} -p ${HARBOR_PASSWD} ${HARBOR_HOST}
+    -  docker build  -t ${IMAGE_URL_PROD} .
+    -  docker push ${IMAGE_URL_PROD}
+    -  docker rmi ${IMAGE_URL_PROD}
+  tags:
+    - qa-spring-cloud-alibaba
+  only:
+    - /^release(\/|-)?.*$/

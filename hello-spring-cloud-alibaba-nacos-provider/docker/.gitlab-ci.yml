@@ -1,0 +1,14 @@
+before_script:
+  - echo "begin to run script"
+  - docker login -u $HARBOR_USER -p $HARBOR_PASSWD $REGISTRY
+
+stages:
+  - build
+
+job_build:
+  stage: build
+  script:
+    - mvn clean install -e -U
+    - chmod +x docker/build.sh && docker/build.sh $CI_COMMIT_REF_SLUG $CI_PROJECT_NAME
+  tags:
+    - qa-nacos-provider

@@ -1,0 +1,16 @@
+#Spring Boot 配置文件的加载顺序，依次为 bootstrap.properties -> bootstrap.yml ->
+  #application.properties -> application.yml ，其中 bootstrap.properties 配置为最高优先级
+#你可以使用 spring.cloud.nacos.config.refresh.enabled=false 来关闭动态刷新
+spring:
+  profiles:
+    active: prod
+  application:
+    # 这里的应用名对应 Nacos Config 中的 Data ID，实际应用名称以配置中心的配置为准
+    name: nacos-provider-config
+  cloud:
+    nacos:
+      config:
+        # 指定查找名为 nacos-provider-config.yaml 的配置文件
+        file-extension: yaml
+        # Nacos Server 的地址
+        server-addr: 192.168.80.229:8848
